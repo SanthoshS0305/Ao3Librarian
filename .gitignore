@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Datasets and data files
+*.csv
+!global_dataset.csv
+*.json
+data/
+datasets/
+spam_dataset.csv
+server_config.json
+
+# Logs
+*.log
+logs/
+bot.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Model files and embeddings
+*.pkl
+*.pickle
+*.model
+*.bin
+embeddings/
+models/
+
+# Cache
+.cache/
+cache/
+
+# Security files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx

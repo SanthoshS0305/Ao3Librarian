@@ -1,0 +1,23 @@
+# Discord Bot Configuration
+DISCORD_TOKEN=your_discord_bot_token_here
+
+# PostgreSQL Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ao3_tracker
+DB_USER=postgres
+DB_PASSWORD=your_database_password_here
+
+# Bot Configuration
+COMMAND_PREFIX=!
+POLLING_INTERVAL=3600
+
+# Configurable Limits
+MAX_SUBSCRIPTIONS_PER_CHANNEL=50
+MAX_FEEDS_GLOBAL=1000
+COMMAND_COOLDOWN_SECONDS=5
+FEED_FETCH_TIMEOUT=30
+CIRCUIT_BREAKER_FAILURE_THRESHOLD=3
+
+# Discord Intents
+MESSAGE_CONTENT_INTENT=true
