@@ -24,13 +24,16 @@ class ListCommand(commands.Cog):
         channel: discord.TextChannel = None
     ):
         """Slash command to list subscriptions."""
+        # Defer response immediately to avoid interaction timeout
+        await interaction.response.defer(ephemeral=True)
+        
         target_channel = channel or interaction.channel
         
         try:
             subscriptions = await db.get_subscriptions_by_channel(target_channel.id)
             
             if not subscriptions:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"📭 No subscriptions found for {target_channel.mention}.",
                     ephemeral=True
                 )
@@ -65,11 +68,11 @@ class ListCommand(commands.Cog):
             if len(subscriptions) > 25:
                 embed.set_footer(text=f"Showing 25 of {len(subscriptions)} subscriptions")
             
-            await interaction.response.send_message(embed=embed, ephemeral=False)
+            await interaction.followup.send(embed=embed, ephemeral=False)
         
         except Exception as e:
             logger.error(f"Error in list command: {e}", exc_info=True)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ An error occurred while listing subscriptions: {str(e)}",
                 ephemeral=True
             )

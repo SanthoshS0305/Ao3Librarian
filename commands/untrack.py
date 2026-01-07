@@ -49,8 +49,11 @@ class UntrackCommand(commands.Cog):
         subscription_id: int = None
     ):
         """Slash command to untrack a feed."""
+        # Defer response immediately to avoid interaction timeout
+        await interaction.response.defer(ephemeral=True)
+        
         if not tag_id and not subscription_id:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Please provide either a tag ID/feed URL or subscription ID.",
                 ephemeral=True
             )
@@ -62,7 +65,7 @@ class UntrackCommand(commands.Cog):
         require_perms = await db.get_require_permissions(interaction.guild.id)
         if require_perms:
             if not interaction.user.guild_permissions.manage_channels:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ You need the `manage_channels` permission to untrack feeds in this server.",
                     ephemeral=True
                 )
@@ -73,14 +76,14 @@ class UntrackCommand(commands.Cog):
                 # Use subscription ID
                 subscription = await db.get_subscription_by_id(subscription_id)
                 if not subscription:
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         f"❌ Subscription ID {subscription_id} not found.",
                         ephemeral=True
                     )
                     return
                 
                 if subscription["channel_id"] != target_channel.id:
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         f"❌ Subscription {subscription_id} is not for {target_channel.mention}.",
                         ephemeral=True
                     )
@@ -92,7 +95,7 @@ class UntrackCommand(commands.Cog):
                 # Use tag_id
                 extracted_tag_id = extract_tag_id(tag_id)
                 if not extracted_tag_id or not validate_tag_id(extracted_tag_id):
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         "❌ Invalid tag ID or feed URL.",
                         ephemeral=True
                     )
@@ -100,7 +103,7 @@ class UntrackCommand(commands.Cog):
                 
                 feed = await db.get_feed_by_tag_id(extracted_tag_id)
                 if not feed:
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         f"❌ Feed not found: {extracted_tag_id}",
                         ephemeral=True
                     )
@@ -112,21 +115,21 @@ class UntrackCommand(commands.Cog):
             deleted = await db.delete_subscription(feed_id, target_channel.id)
             
             if deleted:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"✅ Successfully unsubscribed {target_channel.mention} from feed.\n"
                     f"**Tag ID:** {tag_id_value}",
                     ephemeral=False
                 )
                 logger.info(f"Deleted subscription: feed_id={feed_id}, channel_id={target_channel.id}, user_id={interaction.user.id}")
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"⚠️ {target_channel.mention} is not tracking this feed.",
                     ephemeral=True
                 )
         
         except Exception as e:
             logger.error(f"Error in untrack command: {e}", exc_info=True)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ An error occurred while untracking the feed: {str(e)}",
                 ephemeral=True
             )

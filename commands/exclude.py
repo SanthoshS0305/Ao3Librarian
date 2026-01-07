@@ -49,11 +49,14 @@ class ExcludeCommand(commands.Cog):
         tag_url: str
     ):
         """Slash command to exclude a tag."""
+        # Defer response immediately to avoid interaction timeout
+        await interaction.response.defer(ephemeral=True)
+        
         try:
             # Verify subscription exists and belongs to this server
             subscription = await db.get_subscription_by_id(subscription_id)
             if not subscription:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"❌ Subscription ID {subscription_id} not found.",
                     ephemeral=True
                 )
@@ -61,7 +64,7 @@ class ExcludeCommand(commands.Cog):
             
             # Check if user has permission (must be in the same server)
             if interaction.guild.id != subscription["server_id"]:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ You can only manage subscriptions in your own server.",
                     ephemeral=True
                 )
@@ -70,7 +73,7 @@ class ExcludeCommand(commands.Cog):
             # Extract and clean tag name
             tag_name = extract_tag_name_from_url(tag_url)
             if len(tag_name) > 500:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ Tag name is too long (max 500 characters).",
                     ephemeral=True
                 )
@@ -80,7 +83,7 @@ class ExcludeCommand(commands.Cog):
             added = await db.add_excluded_tag(subscription_id, tag_name)
             
             if added:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"✅ Added tag to exclusion list.\n"
                     f"**Subscription ID:** {subscription_id}\n"
                     f"**Excluded Tag:** {tag_name}",
@@ -88,14 +91,14 @@ class ExcludeCommand(commands.Cog):
                 )
                 logger.info(f"Added excluded tag: subscription_id={subscription_id}, tag_name={tag_name}, user_id={interaction.user.id}")
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"⚠️ Tag is already in the exclusion list.",
                     ephemeral=True
                 )
         
         except Exception as e:
             logger.error(f"Error in exclude command: {e}", exc_info=True)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ An error occurred while adding exclusion: {str(e)}",
                 ephemeral=True
             )
@@ -112,18 +115,21 @@ class ExcludeCommand(commands.Cog):
         tag_url: str
     ):
         """Slash command to remove an exclusion."""
+        # Defer response immediately to avoid interaction timeout
+        await interaction.response.defer(ephemeral=True)
+        
         try:
             # Verify subscription exists and belongs to this server
             subscription = await db.get_subscription_by_id(subscription_id)
             if not subscription:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"❌ Subscription ID {subscription_id} not found.",
                     ephemeral=True
                 )
                 return
             
             if interaction.guild.id != subscription["server_id"]:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ You can only manage subscriptions in your own server.",
                     ephemeral=True
                 )
@@ -136,7 +142,7 @@ class ExcludeCommand(commands.Cog):
             removed = await db.remove_excluded_tag(subscription_id, tag_name)
             
             if removed:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"✅ Removed tag from exclusion list.\n"
                     f"**Subscription ID:** {subscription_id}\n"
                     f"**Tag:** {tag_name}",
@@ -144,14 +150,14 @@ class ExcludeCommand(commands.Cog):
                 )
                 logger.info(f"Removed excluded tag: subscription_id={subscription_id}, tag_name={tag_name}, user_id={interaction.user.id}")
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"⚠️ Tag was not in the exclusion list.",
                     ephemeral=True
                 )
         
         except Exception as e:
             logger.error(f"Error in unexclude command: {e}", exc_info=True)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ An error occurred while removing exclusion: {str(e)}",
                 ephemeral=True
             )

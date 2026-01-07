@@ -1,36 +1,15 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: ao3_tracker_db
-    environment:
-      POSTGRES_DB: ao3_tracker
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   bot:
     build: .
     container_name: ao3_tracker_bot
-    depends_on:
-      postgres:
-        condition: service_healthy
+    network_mode: host
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ao3_tracker
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_HOST: ${DB_HOST:-localhost}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-ao3_tracker}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
       COMMAND_PREFIX: ${COMMAND_PREFIX:-!}
       POLLING_INTERVAL: ${POLLING_INTERVAL:-3600}
       MESSAGE_CONTENT_INTENT: ${MESSAGE_CONTENT_INTENT:-true}
@@ -38,6 +17,3 @@ services:
     volumes:
       # Mount .env file if you want to override settings
       - ./.env:/app/.env:ro
-
-volumes:
-  postgres_data:

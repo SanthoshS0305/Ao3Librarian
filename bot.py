@@ -3,8 +3,10 @@ import discord
 from discord.ext import commands, tasks
 import logging
 import asyncio
+import re
 from datetime import datetime
 from typing import List, Dict, Set
+from html import unescape
 
 from config import config
 from database import db
@@ -73,20 +75,44 @@ class AO3TrackerBot(commands.Bot):
     
     def create_entry_embed(self, entry: Dict) -> discord.Embed:
         """Create a Discord embed for a feed entry."""
+        # Extract plain text from HTML summary (only summary parts, not author/metadata)
+        summary_text = self._extract_summary_text(entry.get("summary_html", ""))
+        
+        # Build title: "TITLE by AUTHOR" (title will be clickable via url parameter)
+        title_text = entry['title']
+        author_name = entry.get("author", "Unknown")
+        title_text += f" by {author_name}"
+        
         embed = discord.Embed(
-            title=entry["title"],
-            url=entry["link"],
-            description=entry.get("summary_html", "")[:2000] if entry.get("summary_html") else "No summary",
+            title=title_text,
+            url=entry['link'],  # Makes the title clickable
+            description=summary_text[:2000] if summary_text else "No summary",
             color=discord.Color.blue(),
             timestamp=entry.get("updated") or entry.get("published") or datetime.utcnow()
         )
+
+        embed.set_author(name="Ao3 Update Tracker")
         
-        # Add author
-        embed.set_author(name=entry.get("author", "Unknown"))
+        # Add author field with link (Markdown links work in field values)
+        author_name = entry.get("author", "Unknown")
+        author_link = entry.get("author_link")
+        if author_link:
+            author_field_value = f"[{author_name}]({author_link})"
+        else:
+            author_field_value = author_name
+        embed.add_field(name="Author", value=author_field_value, inline=True)
+
+        # Add fandom field (join multiple fandoms with commas)
+        fandoms = entry.get("fandoms", [])
+        if fandoms:
+            fandom_field_value = ", ".join(fandoms)
+        else:
+            fandom_field_value = "Unknown"
+        embed.add_field(name="Fandom", value=fandom_field_value, inline=False)
         
-        # Add metadata fields
-        if entry.get("words"):
-            embed.add_field(name="Words", value=f"{entry['words']:,}", inline=True)
+        # Always show word count (even if 0)
+        words = entry.get("words", 0)
+        embed.add_field(name="Words", value=f"{words:,}", inline=True)
         
         if entry.get("chapters"):
             embed.add_field(name="Chapters", value=entry["chapters"], inline=True)
@@ -96,6 +122,12 @@ class AO3TrackerBot(commands.Bot):
         
         if entry.get("language"):
             embed.add_field(name="Language", value=entry["language"], inline=True)
+        
+        # Add series if present
+        series = entry.get("series")
+        if series:
+            series_text = f"[{series['name']}]({series['link']})"
+            embed.add_field(name="Series", value=series_text, inline=False)
         
         # Add tags (truncate if too long)
         if entry.get("relationships"):
@@ -124,6 +156,55 @@ class AO3TrackerBot(commands.Bot):
         embed.set_footer(text="Archive of Our Own")
         
         return embed
+    
+    def _extract_summary_text(self, html_content: str) -> str:
+        """Extract plain text from HTML summary, removing HTML tags and metadata.
+        
+        Format: <p>by <a>author</a></p><p>summary part 1</p>...<p>summary part n</p><p>word count, etc</p><p>series</p><ul>metadata</ul>
+        We want only the summary parts (between author line and word count line).
+        """
+        if not html_content:
+            return ""
+        
+        # Find the author paragraph and skip it
+        # Pattern: <p>by <a href="..." rel="author">Author</a></p>
+        author_end = re.search(r'<p>by\s+<a[^>]*rel="author"[^>]*>[^<]+</a></p>', html_content)
+        if author_end:
+            # Start after the author paragraph
+            html_content = html_content[author_end.end():]
+        
+        # Find where word count/chapters line starts (before <ul>)
+        # Look for pattern like: <p>Words: X, Chapters: Y/Z, Language: Z</p>
+        word_count_match = re.search(r'<p>Words:', html_content, re.IGNORECASE)
+        if word_count_match:
+            # Extract only content before word count line
+            html_content = html_content[:word_count_match.start()]
+        
+        # If no word count line, look for <ul> (metadata list)
+        if not word_count_match:
+            ul_match = re.search(r'<ul', html_content, re.IGNORECASE)
+            if ul_match:
+                html_content = html_content[:ul_match.start()]
+        
+        # Extract text from all <p> tags (summary paragraphs)
+        paragraphs = re.findall(r'<p>(.*?)</p>', html_content, re.DOTALL)
+        
+        # Clean each paragraph: remove HTML tags, decode entities
+        cleaned_paragraphs = []
+        for para in paragraphs:
+            # Remove HTML tags
+            para_text = re.sub(r'<[^>]+>', '', para)
+            # Decode HTML entities
+            para_text = unescape(para_text)
+            # Clean whitespace
+            para_text = re.sub(r'\s+', ' ', para_text).strip()
+            if para_text:
+                cleaned_paragraphs.append(para_text)
+        
+        # Join paragraphs with double newlines
+        text = '\n\n'.join(cleaned_paragraphs)
+        
+        return text
     
     async def send_entry_notification(self, entry: Dict, channel_id: int):
         """Send a notification for an entry to a channel."""

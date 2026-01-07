@@ -47,8 +47,11 @@ class StatusCommand(commands.Cog):
         subscription_id: int = None
     ):
         """Slash command to show feed status."""
+        # Defer response immediately to avoid interaction timeout
+        await interaction.response.defer(ephemeral=True)
+        
         if not tag_id and not subscription_id:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Please provide either a tag ID or subscription ID.",
                 ephemeral=True
             )
@@ -58,7 +61,7 @@ class StatusCommand(commands.Cog):
             if subscription_id:
                 subscription = await db.get_subscription_by_id(subscription_id)
                 if not subscription:
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         f"❌ Subscription ID {subscription_id} not found.",
                         ephemeral=True
                     )
@@ -68,14 +71,14 @@ class StatusCommand(commands.Cog):
             else:
                 extracted_tag_id = extract_tag_id(tag_id)
                 if not extracted_tag_id or not validate_tag_id(extracted_tag_id):
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         "❌ Invalid tag ID or feed URL.",
                         ephemeral=True
                     )
                     return
                 feed = await db.get_feed_by_tag_id(extracted_tag_id)
                 if not feed:
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         f"❌ Feed not found: {extracted_tag_id}",
                         ephemeral=True
                     )
@@ -145,11 +148,11 @@ class StatusCommand(commands.Cog):
                     inline=False
                 )
             
-            await interaction.response.send_message(embed=embed, ephemeral=False)
+            await interaction.followup.send(embed=embed, ephemeral=False)
         
         except Exception as e:
             logger.error(f"Error in status command: {e}", exc_info=True)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ An error occurred while getting status: {str(e)}",
                 ephemeral=True
             )

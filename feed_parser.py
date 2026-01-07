@@ -63,6 +63,17 @@ class FeedParser:
         summary_html = entry.get("summary", "")
         tag_names = FeedParser.extract_tag_names(summary_html)
         
+        # Extract author name and link from first paragraph
+        author_name = author
+        author_link = None
+        author_match = re.search(r'<p>by\s+<a[^>]*href="([^"]+)"[^>]*rel="author"[^>]*>([^<]+)</a></p>', summary_html)
+        if author_match:
+            author_link = author_match.group(1)
+            author_name = author_match.group(2)
+            # Make sure it's a full URL
+            if author_link and not author_link.startswith('http'):
+                author_link = f"https://archiveofourown.org{author_link}"
+        
         # Extract metadata from summary HTML
         metadata = FeedParser._extract_metadata(summary_html)
         
@@ -70,7 +81,8 @@ class FeedParser:
             "id": entry_id,
             "title": title,
             "link": link,
-            "author": author,
+            "author": author_name,
+            "author_link": author_link,
             "published": published_dt,
             "updated": updated_dt,
             "summary_html": summary_html,
@@ -86,6 +98,8 @@ class FeedParser:
             "chapters": None,
             "language": None,
             "rating": None,
+            "fandoms": [],
+            "series": None,
             "warnings": [],
             "categories": [],
             "characters": [],
@@ -93,10 +107,12 @@ class FeedParser:
             "additional_tags": []
         }
         
-        # Extract word count
+        # Extract word count (always extract, default to 0)
         words_match = re.search(r'Words:\s*(\d+)', html_content)
         if words_match:
             metadata["words"] = int(words_match.group(1))
+        else:
+            metadata["words"] = 0
         
         # Extract chapters
         chapters_match = re.search(r'Chapters:\s*(\d+)/(\d+|\?)', html_content)
@@ -112,6 +128,23 @@ class FeedParser:
         rating_match = re.search(r'Rating:\s*<a[^>]*>([^<]+)</a>', html_content)
         if rating_match:
             metadata["rating"] = rating_match.group(1)
+        
+        # Extract fandoms
+        fandoms_match = re.search(r'Fandoms:\s*(.*?)(?:Rating:|Warnings:|Categories:|Characters:|Relationships:|Additional Tags:|</li>)', html_content, re.DOTALL)
+        if fandoms_match:
+            fandoms_text = fandoms_match.group(1)
+            fandoms_links = re.findall(r'<a[^>]*>([^<]+)</a>', fandoms_text)
+            metadata["fandoms"] = fandoms_links
+        
+        # Extract series (look for "Series:" before the <ul> tag)
+        series_match = re.search(r'Series:\s*<a[^>]*href="([^"]+)"[^>]*>([^<]+)</a>', html_content)
+        if series_match:
+            series_link = series_match.group(1)
+            series_name = series_match.group(2)
+            # Make sure it's a full URL
+            if not series_link.startswith('http'):
+                series_link = f"https://archiveofourown.org{series_link}"
+            metadata["series"] = {"name": series_name, "link": series_link}
         
         # Extract warnings
         warnings_match = re.search(r'Warnings:\s*(.*?)(?:Categories:|Characters:|Relationships:|Additional Tags:|</li>)', html_content, re.DOTALL)

@@ -2,6 +2,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from typing import Optional
 import logging
 import re
 from database import db
@@ -54,12 +55,15 @@ class TrackCommand(commands.Cog):
         channel: discord.TextChannel = None
     ):
         """Slash command to track a feed."""
+        # Defer response immediately to avoid interaction timeout
+        await interaction.response.defer(ephemeral=True)
+        
         target_channel = channel or interaction.channel
         
         # Extract tag_id from input
         extracted_tag_id = extract_tag_id(tag_id)
         if not extracted_tag_id or not validate_tag_id(extracted_tag_id):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Invalid AO3 tag ID or feed URL. Must be:\n"
                 "- A tag ID (alphanumeric, hyphens, underscores, max 100 chars), or\n"
                 "- A full feed URL: `https://archiveofourown.org/tags/{tag_id}/feed.atom`",
@@ -71,7 +75,7 @@ class TrackCommand(commands.Cog):
         require_perms = await db.get_require_permissions(interaction.guild.id)
         if require_perms:
             if not interaction.user.guild_permissions.manage_channels:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ You need the `manage_channels` permission to track feeds in this server.",
                     ephemeral=True
                 )
@@ -80,7 +84,7 @@ class TrackCommand(commands.Cog):
         # Check subscription limit
         existing_subs = await db.get_subscriptions_by_channel(target_channel.id)
         if len(existing_subs) >= config.MAX_SUBSCRIPTIONS_PER_CHANNEL:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ Channel {target_channel.mention} has reached the maximum of {config.MAX_SUBSCRIPTIONS_PER_CHANNEL} subscriptions.",
                 ephemeral=True
             )
@@ -88,7 +92,7 @@ class TrackCommand(commands.Cog):
         
         # Check permissions
         if not target_channel.permissions_for(interaction.guild.me).send_messages:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ I don't have permission to send messages in {target_channel.mention}",
                 ephemeral=True
             )
@@ -100,7 +104,7 @@ class TrackCommand(commands.Cog):
             
             # Check if subscription already exists
             if await db.subscription_exists(feed_id, target_channel.id):
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"⚠️ {target_channel.mention} is already tracking this feed.",
                     ephemeral=True
                 )
@@ -113,7 +117,7 @@ class TrackCommand(commands.Cog):
                 interaction.guild.id
             )
             
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"✅ Successfully subscribed {target_channel.mention} to feed!\n"
                 f"**Tag ID:** {extracted_tag_id}\n"
                 f"**Subscription ID:** {subscription_id}",
@@ -123,7 +127,7 @@ class TrackCommand(commands.Cog):
         
         except Exception as e:
             logger.error(f"Error in track command: {e}", exc_info=True)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ An error occurred while tracking the feed: {str(e)}",
                 ephemeral=True
             )
